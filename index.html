@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>التصويت - معرض البحث العلمي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{ink:'#0B2B36',mist:'#E6EEEC',cobalt:'#2149D1',gold:'#FFB81C'},
+fontFamily:{kufi:['"Reem Kufi"','serif'],plex:['"IBM Plex Sans Arabic"','sans-serif']}}}}
+</script>
+<style>
+body{background:#E6EEEC;background-image:radial-gradient(#0B2B3622 1px,transparent 1.2px);background-size:18px 18px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#0B2B36}
+.slab{background:#fff;border:2px solid #0B2B36;border-radius:14px;box-shadow:5px 5px 0 #0B2B36;transition:transform .12s,box-shadow .12s,background .12s}
+.team{cursor:pointer;text-align:right;width:100%}
+.team:active{transform:translate(3px,3px);box-shadow:2px 2px 0 #0B2B36}
+.team[aria-pressed=true]{background:#FFB81C}
+.team:focus-visible,button:focus-visible{outline:3px solid #2149D1;outline-offset:3px}
+.dot{width:28px;height:28px;border:2px solid #0B2B36;border-radius:50%;background:#fff;display:grid;place-items:center;flex:none}
+.team[aria-pressed=true] .dot{background:#0B2B36;color:#FFB81C}
+.dot svg{opacity:0}.team[aria-pressed=true] .dot svg{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body class="min-h-screen pb-32">
+<main class="max-w-xl mx-auto px-4 pt-8">
+
+  <header class="flex items-center gap-4 mb-6">
+    <div class="w-14 h-14 rounded-xl bg-ink grid place-items-center flex-none" style="box-shadow:4px 4px 0 #FFB81C">
+      <!-- أيقونة دورق -->
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFB81C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2.2h12.4a1.5 1.5 0 0 0 1.3-2.2L14 9V3"/><path d="M7.5 15h9"/></svg>
+    </div>
+    <div>
+      <h1 class="font-kufi font-bold text-3xl leading-tight">معرض البحث العلمي</h1>
+      <p class="text-sm opacity-75">اختر مشروعاً واحداً ثم أكّد صوتك.</p>
+    </div>
+  </header>
+
+  <div id="app"></div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ===== إعدادات Firebase ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAgidiUSGZb3JqV9yXW-Ki32ovUZjeeerQ",
+  authDomain: "science-fair-voting.firebaseapp.com",
+  databaseURL: "https://science-fair-voting-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "science-fair-voting",
+  storageBucket: "science-fair-voting.firebasestorage.app",
+  messagingSenderId: "18056905745",
+  appId: "1:18056905745:web:807c13defd7cf870565db0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const KEY = 'sf_vote_v1';               // مفتاح منع التصويت المتكرر في هذا المتصفح
+let teams = null, round = null, sel = null, busy = false, err = '';
+const $app = document.getElementById('app');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// الجولة: عند إعادة الضبط من الأدمن تتغير الجولة ويُسمح بالتصويت من جديد
+const myVote = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); return v && v.round === round ? v : null; } catch (e) { return null; } };
+
+db.ref('meta/round').on('value', s => { round = s.val() || 0; render(); });
+db.ref('teams').on('value', s => { teams = s.val() || {}; if (sel && !teams[sel]) sel = null; render(); },
+  () => { err = 'تعذّر الاتصال بقاعدة البيانات.'; render(); });
+
+const check = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+function render() {
+  if (err) { $app.innerHTML = `<div class="slab p-5 font-semibold">${err}</div>`; return; }
+  if (teams === null || round === null) { $app.innerHTML = '<p class="text-center py-16 font-semibold">جارٍ تحميل المشاريع...</p>'; return; }
+
+  const v = myVote();
+  if (v) {                                         // شاشة التأكيد بعد التصويت
+    const name = teams[v.team] ? teams[v.team].name : 'المشروع المختار';
+    $app.innerHTML = `<div class="slab p-8 text-center bg-gold">
+      <div class="w-20 h-20 mx-auto rounded-full bg-ink text-gold grid place-items-center mb-4"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <h2 class="font-kufi font-bold text-3xl mb-2">تم تسجيل صوتك</h2>
+      <p class="font-medium">صوّتّ لمشروع <b>${esc(name)}</b>.<br>شكراً لمشاركتك.</p></div>`;
+    return;
+  }
+
+  const list = Object.entries(teams).sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
+  if (!list.length) { $app.innerHTML = '<div class="slab p-6 text-center font-semibold">لم تُضف مشاريع بعد. عُد بعد قليل.</div>'; return; }
+
+  $app.innerHTML = `
+    <div class="space-y-4">${list.map(([id, t]) => `
+      <button class="slab team p-4 flex items-center gap-4" aria-pressed="${sel===id}" data-id="${id}">
+        <span class="dot">${check}</span>
+        <span class="font-kufi font-bold text-2xl leading-snug">${esc(t.name)}</span>
+      </button>`).join('')}</div>
+    <div class="fixed inset-x-0 bottom-0 p-4 bg-mist/90 backdrop-blur" style="padding-bottom:max(1rem,env(safe-area-inset-bottom))">
+      <div class="max-w-xl mx-auto">
+        <button id="go" class="w-full py-4 rounded-xl bg-cobalt text-white font-kufi font-bold text-xl border-2 border-ink disabled:opacity-40" style="box-shadow:4px 4px 0 #0B2B36" ${sel&&!busy?'':'disabled'}>
+          ${busy ? 'جارٍ الإرسال...' : sel ? 'تأكيد التصويت' : 'اختر مشروعاً أولاً'}</button>
+      </div></div>`;
+}
+
+$app.addEventListener('click', e => {
+  const c = e.target.closest('[data-id]'); if (c) { sel = c.dataset.id; render(); return; }
+  if (e.target.closest('#go')) submit();
+});
+
+async function submit() {
+  if (!sel || busy || myVote()) return;
+  busy = true; render();
+  const inc = firebase.database.ServerValue.increment(1);
+  try {
+    await db.ref('teams/' + sel).update({ votes: inc });   // زيادة ذرّية آمنة
+    localStorage.setItem(KEY, JSON.stringify({ round, team: sel }));
+  } catch (e) { err = 'فشل إرسال الصوت. تحقق من الاتصال وحاول مجدداً.'; setTimeout(() => { err = ''; render(); }, 3000); }
+  busy = false; render();
+}
+</script>
+</body>
+</html>
