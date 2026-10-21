@@ -122,16 +122,3 @@ async function submit() {
 </script>
 </body>
 </html>
-
-  if (!sel || busy || myVote()) return;
-  busy = true; render();
-  const inc = firebase.database.ServerValue.increment(1);
-  try {
-    await db.ref('teams/' + sel).update({ votes: inc });   // زيادة ذرّية آمنة
-    localStorage.setItem(KEY, JSON.stringify({ round, team: sel }));
-  } catch (e) { err = 'فشل إرسال الصوت. تحقق من الاتصال وحاول مجدداً.'; setTimeout(() => { err = ''; render(); }, 3000); }
-  busy = false; render();
-}
-</script>
-</body>
-</html>
