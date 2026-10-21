@@ -21,6 +21,7 @@ body{background:#E6EEEC;background-image:radial-gradient(#0B2B3622 1px,transpare
 .dot{width:28px;height:28px;border:2px solid #0B2B36;border-radius:50%;background:#fff;display:grid;place-items:center;flex:none}
 .team[aria-pressed=true] .dot{background:#0B2B36;color:#FFB81C}
 .dot svg{opacity:0}.team[aria-pressed=true] .dot svg{opacity:1}
+.wm{margin:2.5rem auto 0;padding:0 1rem 1rem;text-align:center;font-size:.75rem;font-weight:500;color:#0B2B36;opacity:.5}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -40,6 +41,8 @@ body{background:#E6EEEC;background-image:radial-gradient(#0B2B3622 1px,transpare
 
   <div id="app"></div>
 </main>
+
+<footer class="wm" dir="rtl">برمجة وتصميم محمد باسل العرنوس</footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -107,6 +110,19 @@ $app.addEventListener('click', e => {
 });
 
 async function submit() {
+  if (!sel || busy || myVote()) return;
+  busy = true; render();
+  const inc = firebase.database.ServerValue.increment(1);
+  try {
+    await db.ref('teams/' + sel).update({ votes: inc });   // زيادة ذرّية آمنة
+    localStorage.setItem(KEY, JSON.stringify({ round, team: sel }));
+  } catch (e) { err = 'فشل إرسال الصوت. تحقق من الاتصال وحاول مجدداً.'; setTimeout(() => { err = ''; render(); }, 3000); }
+  busy = false; render();
+}
+</script>
+</body>
+</html>
+
   if (!sel || busy || myVote()) return;
   busy = true; render();
   const inc = firebase.database.ServerValue.increment(1);
